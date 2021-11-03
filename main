@@ -1,0 +1,145 @@
+//Ultasonic Sensor
+
+//Pins connected to the ultrasonic sensor
+#define trigPin  2
+#define echoPin 3
+//LED pins
+#define led 9
+#define pump 8
+#include <Stepper.h>
+#include <Servo.h>
+
+const int RANGE = 8;//range in inches
+// Number of steps per internal motor revolution 
+//servo
+int pos = 0;
+
+Servo servo_13;
+
+
+//servo
+const float STEPS_PER_REV = 64; 
+ 
+//  Amount of Gear Reduction
+const float GEAR_RED = 64;
+ 
+// Number of steps per geared output rotation
+const float STEPS_PER_OUT_REV = STEPS_PER_REV * GEAR_RED;
+ 
+// Define Variables
+ 
+// Number of Steps Required
+int StepsRequired;
+ 
+// Create Instance of Stepper Class
+// Specify Pins used for motor coils
+// The pins used are 12,9,10,11 
+// Connected to ULN2003 Motor Driver In1, In2, In3, In4 
+// Pins entered in sequence 1-3-2-4 for proper step sequencing
+ 
+Stepper steppermotor(STEPS_PER_REV, 10, 9, 11, 12);
+
+void setup() {
+
+  // initialize serial communication:
+  Serial.begin(9600);
+  //initialize the sensor pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  //initialize LED pins
+  pinMode(led, OUTPUT);
+  pinMode(pump, OUTPUT);
+  //set LEDs
+  digitalWrite(led, HIGH);
+  digitalWrite(pump, HIGH);
+  //servo
+  servo_13.attach(13, 500, 2500);
+}
+
+void loop()
+{
+  // establish variables for duration of the ping, 
+  // and the distance result in inches and centimeters:
+  long duration, inches, cm;
+
+  // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(trigPin, LOW);
+
+  // Take reading on echo pin
+  duration = pulseIn(echoPin, HIGH);
+
+  // convert the time into a distance
+  inches = microsecondsToInches(duration);
+  cm = microsecondsToCentimeters(duration);
+  
+  Serial.print(inches);
+  Serial.print("in, ");
+  Serial.print(cm);
+  Serial.print("cm");
+  Serial.println();
+  
+
+  if(inches < RANGE) {
+    Serial.println("hand puted");
+    // Rotate CW 1/2 turn 
+    StepsRequired  =  STEPS_PER_OUT_REV  ; 
+    steppermotor.setSpeed(400);   
+    steppermotor.step(StepsRequired);
+    
+    digitalWrite(led, LOW);
+    digitalWrite(pump, HIGH);
+    
+    
+    //servo
+    for (pos = 0; pos <= 180; pos += 1) {
+        // tell servo to go to position in variable 'pos'
+      servo_13.write(pos);
+        // wait 15 ms for servo to reach the position
+      delay(15); // Wait for 15 millisecond(s)
+    }
+    for (pos = 180; pos >= 0; pos -= 1) {
+      // tell servo to go to position in variable 'pos'
+      servo_13.write(pos);
+     // wait 15 ms for servo to reach the position
+    delay(15); // Wait for 15 millisecond(s)
+    }
+    // Rotate CCW 1/2 turn quickly
+     StepsRequired  =  - STEPS_PER_OUT_REV /2 ;   
+     steppermotor.setSpeed(400);  
+     steppermotor.step(StepsRequired);
+     Serial.print("motor Should Stop ccw");
+  //servo
+    delay(100);
+   }
+  else {
+    Serial.println("no hand");
+     digitalWrite(led, HIGH);
+     digitalWrite(pump, LOW); 
+     delay(100);
+     
+  }  
+  
+  delay(200);
+  
+  
+  
+}
+
+long microsecondsToInches(long microseconds)
+{
+
+  return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds)
+{
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the distance of the
+  // object we take half of the distance travelled.
+  return microseconds / 29 / 1;
+}
